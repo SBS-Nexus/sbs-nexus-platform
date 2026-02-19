@@ -32,6 +32,7 @@ Die SBS Nexus Platform folgt Architekturprinzipien, wie sie in Enterprise-Stacks
 Die Plattform wird als Monorepo geführt, um Cross-Modul-Patterns, gemeinsame Governance und konsistentes Deployment zu gewährleisten [web:118][web:125].
 
 ```text
+
 sbs-nexus-platform/
 ├── modules/
 │   └── rechnungsverarbeitung/        # KI-Rechnungsverarbeitung (Modul 1)
@@ -53,8 +54,6 @@ sbs-nexus-platform/
 ├── email_templates/                  # Enterprise-E-Mail-Templates (Branding)
 ├── pptx_templates/                   # Präsentations-/Report-Templates
 └── README.md
-
-
 Modul 1: KI-Rechnungsverarbeitung (Invoice API)
 Die KI-Rechnungsverarbeitung ist das erste Modul, das auf dem neuen Enterprise-Core aufsetzt. Ziel: Mandantenfähige, KI-gestützte Eingangsrechnungsverarbeitung für Industrie-KMU, mit klarer Trennung von Metadaten, Inhalten und Event-Historie [web:76][web:93].
 
