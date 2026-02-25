@@ -6,26 +6,37 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    # TODO: Für Entwicklung anpassen, z.B.:
-    # "postgresql+psycopg://user:password@localhost:5432/ki_rechnungsverarbeitung"
-    "postgresql+psycopg://user:password@localhost:5432/ki_rechnungsverarbeitung",
-)
-
-engine = create_engine(DATABASE_URL, echo=False, future=True)
-SessionLocal: sessionmaker[Session] = sessionmaker(
-    bind=engine,
-    autoflush=False,
-    autocommit=False,
-)
-
 Base = declarative_base()
+
+_engine = None
+_SessionLocal = None
+
+
+def get_engine():
+    global _engine
+    if _engine is None:
+        database_url = os.getenv(
+            "DATABASE_URL",
+            "postgresql+psycopg://user:password@localhost:5432/ki_rechnungsverarbeitung",
+        )
+        _engine = create_engine(database_url, echo=False, future=True)
+    return _engine
+
+
+def get_session_factory() -> sessionmaker[Session]:
+    global _SessionLocal
+    if _SessionLocal is None:
+        _SessionLocal = sessionmaker(
+            bind=get_engine(),
+            autoflush=False,
+            autocommit=False,
+        )
+    return _SessionLocal
 
 
 @contextmanager
 def get_session() -> Session:
-    session = SessionLocal()
+    session = get_session_factory()()
     try:
         yield session
         session.commit()
