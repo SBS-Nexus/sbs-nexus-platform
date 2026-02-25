@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import BinaryIO
 
 from shared.db.session import get_session
@@ -38,7 +38,7 @@ def process_invoice_upload(file_stream: BinaryIO, file_name: str, mime_type: str
     return metadata
 
 def _persist_metadata(metadata: InvoiceDocumentMetadata) -> None:
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     with get_session() as session:
         invoice = Invoice(
@@ -48,7 +48,7 @@ def _persist_metadata(metadata: InvoiceDocumentMetadata) -> None:
             file_name=metadata.file_name,
             mime_type=metadata.mime_type,
             uploaded_by=metadata.uploaded_by,
-            uploaded_at=metadata.uploaded_at or datetime.utcnow(),
+            uploaded_at=metadata.uploaded_at or datetime.now(timezone.utc),
             processed_at=metadata.processed_at,
             source_system=metadata.source_system,
             status=metadata.status,
