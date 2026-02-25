@@ -1,22 +1,22 @@
 from __future__ import annotations
-from dataclasses import dataclass
+
 from datetime import datetime, timezone
 from typing import Optional
 
+from shared.document_model import (
+    UnifiedDocumentMetadata,
+    DocumentType,
+    DocumentStatus,
+    DataClassification,
+)
 from shared.tenant.context import TenantContext
 
-@dataclass
-class InvoiceDocumentMetadata:
-    id: str
-    tenant_id: str
-    document_type: str = "invoice"
-    file_name: Optional[str] = None
-    mime_type: Optional[str] = None
-    uploaded_by: Optional[str] = None
-    uploaded_at: Optional[datetime] = None
-    processed_at: Optional[datetime] = None
-    source_system: str = "ki-rechnungsverarbeitung"
-    status: str = "uploaded"
+
+class InvoiceDocumentMetadata(UnifiedDocumentMetadata):
+    """
+    Rechnungs-spezifische Erweiterung von UnifiedDocumentMetadata.
+    Fügt invoice-spezifische Felder hinzu ohne Basis-Logik zu duplizieren.
+    """
 
     @staticmethod
     def for_new_upload(
@@ -25,15 +25,16 @@ class InvoiceDocumentMetadata:
         mime_type: str,
         uploaded_by: Optional[str] = None,
     ) -> "InvoiceDocumentMetadata":
-        """Factory zum konsistenten Erzeugen von Metadaten für neue Uploads."""
-        now = datetime.now(timezone.utc)
-        tenant_id = TenantContext.get_current_tenant()
-        return InvoiceDocumentMetadata(
-            id=document_id,
-            tenant_id=tenant_id,
+        base = UnifiedDocumentMetadata.create(
+            document_id=document_id,
+            tenant_id=TenantContext.get_current_tenant(),
+            document_type=DocumentType.INVOICE,
             file_name=file_name,
             mime_type=mime_type,
             uploaded_by=uploaded_by or "system",
-            uploaded_at=now,
-            status="uploaded",
+            source_system="ki-rechnungsverarbeitung",
+            classification=DataClassification.CONFIDENTIAL,
         )
+        obj = InvoiceDocumentMetadata.__new__(InvoiceDocumentMetadata)
+        obj.__dict__.update(base.__dict__)
+        return obj
