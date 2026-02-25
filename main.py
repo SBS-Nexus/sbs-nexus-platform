@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from modules.rechnungsverarbeitung.src.api.main import app as invoice_app
 from modules.hydraulikdoc.src.api.main import app as hydraulik_app
 from modules.auftragsai.src.api.main import app as auftragsai_app
+from shared.alerts.api.routes import router as alerts_router
+
 
 platform = FastAPI(
     title="SBS NEXUS Platform API",
@@ -20,6 +22,9 @@ platform.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Shared-Alerts-Router
+platform.include_router(alerts_router, prefix="/api/v1")
 
 # Modul-Router mounten
 platform.mount("/api/v1/rechnungen", invoice_app)
