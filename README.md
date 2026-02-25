@@ -219,6 +219,95 @@ Security-Policies (Rate Limiting, API Keys/OAuth, Rollen-/Rechte-Modell)
 
 Mandantenweites Event-Log und Audit-Trail
 
+
+## Lokaler Start mit Docker
+
+Die SBS NEXUS Platform API kann lokal mit einem Befehl gestartet werden.  
+Stack: FastAPI API-Gateway, 3 Module, PostgreSQL.
+
+### Voraussetzungen
+
+- Docker und Docker Compose installiert
+- Port 8000 auf dem Host frei
+- Port 5433 auf dem Host frei (wird auf den Postgres-Container gemappt)
+
+### Start
+
+```bash
+git clone https://github.com/SBS-Nexus/sbs-nexus-platform.git
+cd sbs-nexus-platform
+
+# Build und Start des Stacks (Platform API + PostgreSQL)
+docker compose up -d
+Die Services:
+
+Platform API: http://localhost:8000
+
+PostgreSQL: Host localhost, Port 5433, DB sbs_nexus, User sbs, Passwort sbs_dev_password[web:298].
+
+Health-Checks
+bash
+curl -s http://localhost:8000/health | jq
+curl -s http://localhost:8000/ | jq
+Erwartete Antwort:
+
+json
+{
+  "status": "ok",
+  "platform": "sbs-nexus",
+  "modules": ["rechnungsverarbeitung", "hydraulikdoc", "auftragsai"]
+}
+Endpunkte – Überblick
+Modul	Upload-Endpoint	Get-Endpoint	List-Endpoint
+Rechnungsverarbeitung	POST /api/v1/rechnungen/invoices/upload	GET /api/v1/rechnungen/invoices/{document_id}	GET /api/v1/rechnungen/invoices
+HydraulikDoc	POST /api/v1/hydraulik/hydraulik/upload	GET /api/v1/hydraulik/hydraulik/{document_id}	GET /api/v1/hydraulik/hydraulik
+AuftragsKI	POST /api/v1/auftraege/auftraege/upload	GET /api/v1/auftraege/auftraege/{document_id}	GET /api/v1/auftraege/auftraege
+Alle Endpunkte sind mandantenfähig und erwarten den Header X-Tenant-ID[web:293].
+
+Beispiel: Rechnung hochladen
+bash
+curl -X POST \
+  "http://localhost:8000/api/v1/rechnungen/invoices/upload" \
+  -H "X-Tenant-ID: demo-tenant" \
+  -H "X-User-ID: demo-user" \
+  -F "file=@/pfad/zu/deiner/rechnung.pdf"
+Antwort (verkürzt):
+
+json
+{
+  "document_id": "uuid...",
+  "tenant_id": "demo-tenant",
+  "status": "processed",
+  "file_name": "rechnung.pdf",
+  "document_type": "invoice"
+}
+Beispiel: Hochgeladene Rechnungen anzeigen
+bash
+curl -X GET \
+  "http://localhost:8000/api/v1/rechnungen/invoices?limit=50&offset=0" \
+  -H "X-Tenant-ID: demo-tenant"
+Die Antwort enthält nur Dokumente dieses Tenants.
+
+Entwicklung ohne Docker
+Alternativ kann die Platform API direkt mit uvicorn gestartet werden:
+
+bash
+python -m venv .venv
+source .venv/bin/activate
+
+pip install -r requirements.txt
+pip install -r requirements-test.txt
+
+# Tests
+python -m pytest modules/ -v --tb=short
+
+# Start der API (lokale DB-Konfiguration via env var)
+export DATABASE_URL="postgresql+psycopg://user:password@localhost:5432/ki_rechnungsverarbeitung"
+uvicorn main:platform --reload
+
+
+
+
 Kontakt & Compliance
 SBS Deutschland GmbH & Co. KG
 In der Dell 19
