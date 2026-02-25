@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sbs
+      POSTGRES_PASSWORD: sbs_dev_password
+      POSTGRES_DB: sbs_nexus
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sbs -d sbs_nexus"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  platform:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://sbs:sbs_dev_password@db:5432/sbs_nexus
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uvicorn main:platform --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:
