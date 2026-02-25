@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from contextlib import contextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
@@ -34,8 +33,12 @@ def get_session_factory() -> sessionmaker[Session]:
     return _SessionLocal
 
 
-@contextmanager
-def get_session() -> Session:
+def get_session():
+    """
+    FastAPI-kompatible DB-Session-Dependency:
+    - Kann als Depends(get_session) verwendet werden.
+    - Commit bei Erfolg, Rollback bei Exception.
+    """
     session = get_session_factory()()
     try:
         yield session
