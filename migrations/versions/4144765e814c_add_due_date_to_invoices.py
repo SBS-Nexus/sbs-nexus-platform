@@ -19,6 +19,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    tables = inspector.get_table_names()
+    if "invoices" not in tables:
+        # [TECH-DEBT] CI-DB hat (noch) keine invoices-Tabelle – Migration wird übersprungen
+        return
+
     op.add_column(
         "invoices",
         sa.Column("due_date", sa.DateTime(timezone=True), nullable=True),
