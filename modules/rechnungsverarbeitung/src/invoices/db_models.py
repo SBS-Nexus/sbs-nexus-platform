@@ -20,5 +20,6 @@ class Invoice(Base):
     uploaded_by: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
     processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=False), nullable=True)
+    due_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     source_system: Mapped[str] = mapped_column(String(128), nullable=False, default="ki-rechnungsverarbeitung")
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True, default="uploaded")

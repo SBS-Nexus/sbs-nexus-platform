@@ -1,0 +1,75 @@
+name: Rechnungsverarbeitung CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rechnungsverarbeitung-tests-and-migrations:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nexus_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d nexus_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test and migration dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-test.txt alembic
+
+      - name: Wait for Postgres
+        run: |
+          python - <<'PY'
+          import time
+          import psycopg
+
+          dsn = "dbname=nexus_ci user=postgres password=postgres host=localhost port=5432"
+          for _ in range(30):
+            try:
+              with psycopg.connect(dsn, connect_timeout=2) as conn:
+                with conn.cursor() as cur:
+                  cur.execute("SELECT 1")
+                raise SystemExit(0)
+            except Exception:
+              time.sleep(1)
+          raise SystemExit("Postgres did not become ready in time")
+          PY
+
+      - name: Run Alembic migrations against temporary Postgres
+        run: |
+          python - <<'PY'
+          import configparser
+
+          database_url = "postgresql+psycopg://postgres:postgres@localhost:5432/nexus_ci"
+          cfg = configparser.ConfigParser()
+          cfg.read("alembic.ini")
+          cfg.set("alembic", "sqlalchemy.url", database_url)
+          with open("alembic-ci.ini", "w", encoding="utf-8") as f:
+            cfg.write(f)
+          PY
+          alembic -c alembic-ci.ini upgrade head
+
+      - name: Run pytest for rechnungsverarbeitung
+        env:
+          PYTHONPATH: .
+        run: pytest modules/rechnungsverarbeitung/tests -q --maxfail=1
