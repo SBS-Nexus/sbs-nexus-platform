@@ -7,7 +7,10 @@ from shared.alerts.models import (
     PaymentTermsAlertData,
     create_payment_terms_alert,
 )
-from modules.contract_analyzer.src.contracts.db_models import Contract
+try:
+    from modules.contract_analyzer.src.contracts.db_models import Contract
+except ModuleNotFoundError:  # optional dependency in this repository snapshot
+    Contract = None
 from modules.rechnungsverarbeitung.src.invoices.db_models import Invoice
 
 
@@ -23,6 +26,9 @@ class PaymentTermsChecker:
         counterparty_name: str,
         invoice_terms_days: int,
     ):
+        if Contract is None:
+            return None
+
         contract: Optional[Contract] = (
             session.query(Contract)
             .filter(

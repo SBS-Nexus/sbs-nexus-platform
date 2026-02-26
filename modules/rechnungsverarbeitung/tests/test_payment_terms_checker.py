@@ -1,61 +1,97 @@
-from datetime import datetime, timezone
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from types import SimpleNamespace
 
-from shared.db.session import Base
-from shared.tenant.context import _tenant_id_ctx
-from modules.contract_analyzer.src.contracts.db_models import Contract
-from modules.rechnungsverarbeitung.src.invoices.db_models import Invoice
+from modules.rechnungsverarbeitung.src.invoices.services.payment_terms import checker as checker_module
 from modules.rechnungsverarbeitung.src.invoices.services.payment_terms.checker import (
     PaymentTermsChecker,
 )
-from shared.alerts.models import Alert
 
 
-def test_payment_terms_mismatch_creates_alert():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(bind=engine)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    _tenant_id_ctx.set("mueller-hydraulik")
+class _ContractModel:
+    tenant_id = "tenant_id"
+    counterparty_name = "counterparty_name"
 
-    # Vertrag mit 30 Tagen Zahlungsziel
-    contract = Contract(
-        document_id="ctr-xyz",
-        tenant_id="mueller-hydraulik",
-        counterparty_name="Firma XYZ",
+    class uploaded_at:
+        @staticmethod
+        def desc():
+            return "uploaded_at_desc"
+
+
+class _FakeQuery:
+    def __init__(self, result):
+        self.result = result
+
+    def filter(self, *args, **kwargs):
+        return self
+
+    def order_by(self, *args, **kwargs):
+        return self
+
+    def first(self):
+        return self.result
+
+
+class _FakeSession:
+    def __init__(self, contract):
+        self._contract = contract
+
+    def query(self, _model):
+        return _FakeQuery(self._contract)
+
+
+def test_payment_terms_mismatch_creates_alert(monkeypatch):
+    contract = SimpleNamespace(
         payment_terms_days=30,
+        document_id="ctr-xyz",
     )
-    session.add(contract)
-
-    # Rechnung mit 60 Tagen Zahlungsziel
-    invoice = Invoice(
-        document_id="inv-xyz",
-        tenant_id="mueller-hydraulik",
-        document_type="invoice",
-        file_name="rechnung_xyz.pdf",
-        mime_type="application/pdf",
-        uploaded_by="buchhaltung",
-        uploaded_at=datetime.now(timezone.utc),
-        status="processed",
-        source_system="ki-rechnungsverarbeitung",
-    )
-    session.add(invoice)
-    session.flush()
+    session = _FakeSession(contract)
+    invoice = SimpleNamespace(document_id="inv-xyz", tenant_id="tenant-a")
 
     checker = PaymentTermsChecker()
-    alert = checker.check_and_alert(
+
+    monkeypatch.setattr(checker_module, "Contract", _ContractModel)
+
+    captured = {}
+
+    def _fake_create_payment_terms_alert(_session, data):
+        captured["data"] = data
+        return "alert-created"
+
+    monkeypatch.setattr(checker_module, "create_payment_terms_alert", _fake_create_payment_terms_alert)
+
+    result = checker.check_and_alert(
         session=session,
         invoice=invoice,
         counterparty_name="Firma XYZ",
         invoice_terms_days=60,
     )
-    session.commit()
 
-    db_alert = session.query(Alert).first()
-    assert alert is not None
-    assert db_alert is not None
-    assert db_alert.tenant_id == "mueller-hydraulik"
-    assert "30" in db_alert.message
-    assert "60" in db_alert.message
-    assert db_alert.counterparty_name == "Firma XYZ"
+    assert result == "alert-created"
+    assert captured["data"].counterparty_name == "Firma XYZ"
+    assert captured["data"].contract_terms_days == 30
+    assert captured["data"].invoice_terms_days == 60
+    assert captured["data"].invoice_document_id == "inv-xyz"
+    assert captured["data"].contract_document_id == "ctr-xyz"
+
+
+def test_payment_terms_match_creates_no_alert(monkeypatch):
+    contract = SimpleNamespace(payment_terms_days=30, document_id="ctr-xyz")
+    session = _FakeSession(contract)
+    invoice = SimpleNamespace(document_id="inv-xyz", tenant_id="tenant-a")
+
+    checker = PaymentTermsChecker()
+
+    monkeypatch.setattr(checker_module, "Contract", _ContractModel)
+
+    def _unexpected(*_args, **_kwargs):
+        raise AssertionError("create_payment_terms_alert should not be called")
+
+    monkeypatch.setattr(checker_module, "create_payment_terms_alert", _unexpected)
+
+    result = checker.check_and_alert(
+        session=session,
+        invoice=invoice,
+        counterparty_name="Firma XYZ",
+        invoice_terms_days=30,
+    )
+
+    assert result is None
