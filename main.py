@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from modules.rechnungsverarbeitung.src.api.main import app as invoice_app
 from modules.hydraulikdoc.src.api.main import app as hydraulik_app
 from modules.auftragsai.src.api.main import app as auftragsai_app
+from modules.contract_analyzer.src.api.main import app as contract_analyzer_app
 from shared.alerts.api.routes import router as alerts_router
 
 
@@ -30,6 +31,7 @@ platform.include_router(alerts_router, prefix="/api/v1")
 platform.mount("/api/v1/rechnungen", invoice_app)
 platform.mount("/api/v1/hydraulik", hydraulik_app)
 platform.mount("/api/v1/auftraege", auftragsai_app)
+platform.mount("/api/v1/contracts", contract_analyzer_app)
 
 
 @platform.get("/health")
@@ -37,7 +39,7 @@ async def health():
     return {
         "status": "ok",
         "platform": "sbs-nexus",
-        "modules": ["rechnungsverarbeitung", "hydraulikdoc", "auftragsai"],
+        "modules": ["rechnungsverarbeitung", "hydraulikdoc", "auftragsai", "contract_analyzer"],
     }
 
 
