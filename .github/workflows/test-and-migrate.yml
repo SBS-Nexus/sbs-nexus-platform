@@ -1,0 +1,57 @@
+name: Test and Alembic Migrations
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-migrate:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sbs_nexus
+          POSTGRES_USER: sbs_dev_user
+          POSTGRES_PASSWORD: sbs_dev_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U sbs_dev_user -d sbs_nexus"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: postgresql+psycopg://sbs_dev_user:sbs_dev_password@localhost:5432/sbs_nexus
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          pip install --no-cache-dir -r requirements.txt
+          pip install pytest
+
+      - name: Wait for Postgres
+        run: |
+          for i in {1..10}; do
+            pg_isready -h localhost -p 5432 -d sbs_nexus -U sbs_dev_user && break
+            echo "Postgres not ready yet, waiting..."
+            sleep 3
+          done
+
+      - name: Run Alembic migrations
+        run: alembic upgrade head
+
+      - name: Run tests
+        run: pytest modules/rechnungsverarbeitung/tests -q
+
