@@ -69,7 +69,9 @@ jobs:
           PY
           alembic -c alembic-ci.ini upgrade head
 
-      - name: Run pytest for rechnungsverarbeitung
+      - name: Run pytest for rechnungsverarbeitung and contract_analyzer
         env:
           PYTHONPATH: .
-        run: pytest modules/rechnungsverarbeitung/tests -q --maxfail=1
+        run: |
+          pytest modules/rechnungsverarbeitung/tests -q --maxfail=1
+          pytest modules/contract_analyzer/tests -q --maxfail=1
