@@ -55,5 +55,5 @@ jobs:
         run: python -m pytest tests/test_legacy_migrations.py -q
 
       - name: Run tests
-        run: pytest modules/rechnungsverarbeitung/tests -q
+        run: python -m pytest modules/rechnungsverarbeitung/tests -q
 
