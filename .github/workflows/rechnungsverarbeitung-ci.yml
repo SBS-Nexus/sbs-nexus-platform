@@ -55,19 +55,10 @@ jobs:
           raise SystemExit("Postgres did not become ready in time")
           PY
 
-      - name: Run Alembic migrations against temporary Postgres
-        run: |
-          python - <<'PY'
-          import configparser
-
-          database_url = "postgresql+psycopg://postgres:postgres@localhost:5432/nexus_ci"
-          cfg = configparser.ConfigParser()
-          cfg.read("alembic.ini")
-          cfg.set("alembic", "sqlalchemy.url", database_url)
-          with open("alembic-ci.ini", "w", encoding="utf-8") as f:
-            cfg.write(f)
-          PY
-          alembic -c alembic-ci.ini upgrade head
+      - name: Verify legacy migrations on disposable Postgres
+        env:
+          MIGRATION_TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/nexus_ci
+        run: python -m pytest tests/test_legacy_migrations.py -q
 
       - name: Run pytest for rechnungsverarbeitung
         env:
