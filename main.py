@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from shared.infra.correlation_id_middleware import CorrelationIdMiddleware
 
 from modules.rechnungsverarbeitung.src.api.main import app as invoice_app
 from modules.hydraulikdoc.src.api.main import app as hydraulik_app
@@ -14,6 +15,9 @@ platform = FastAPI(
     description="Dokumenten-intelligente KI-Plattform für Industrie-KMU",
     version="0.1.0",
 )
+
+platform.add_middleware(CorrelationIdMiddleware, header_name="X-Correlation-ID")
+
 
 platform.add_middleware(
     CORSMiddleware,
